@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>操作画面 - デジタルサイネージ</title>
+    <style>
+        /* ベースのリセットとレイアウト */
+        body { 
+            font-family: 'Yu Gothic', 'Meiryo', sans-serif; 
+            background-color: #f7f7f7; 
+            display: flex;
+            justify-content: center;
+            margin: 0;
+            padding: 40px 0;
+        }
+        #app-container {
+            width: 800px;
+            background: white;
+            padding: 30px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+        
+        /* タイトルとロゴ */
+        header {
+            text-align: left;
+            margin-bottom: 30px;
+        }
+        .logo {
+            font-size: 14px;
+            color: #B50000;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        h1 {
+            font-size: 32px;
+            font-weight: 300;
+            margin-top: 0;
+            color: #333;
+        }
+
+        /* ボタンの共通スタイル */
+        .action-btn {
+            padding: 15px 35px;
+            font-size: 20px;
+            font-weight: bold;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 4px 0 rgba(0, 0, 0, 0.2);
+            transition: transform 0.1s;
+        }
+        .action-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.2);
+        }
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* 追加ボタン (黄色) */
+        .button-row {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .yellow-btn {
+            background: linear-gradient(to top, #FFC107, #FFEB3B);
+            color: #333;
+            width: 200px;
+            box-shadow: 0 4px 0 #FFA000;
+        }
+        .yellow-btn:active {
+            box-shadow: 0 2px 0 #FFA000;
+        }
+
+        /* テーブルスタイル */
+        #playlistTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 50px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.05);
+        }
+        #playlistTable th {
+            background-color: #01579B; /* 濃い青 */
+            color: white;
+            padding: 12px;
+            font-weight: normal;
+            text-align: left;
+        }
+        #playlistTable td {
+            padding: 12px;
+            border-bottom: 1px solid #ddd;
+            text-align: left;
+        }
+        #playlistTable tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .col-duration { width: 100px; text-align: right !important; }
+        .col-action { width: 80px; text-align: center !important; }
+
+        /* 下部ボタン */
+        .footer-buttons {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 50px;
+        }
+        
+        /* 設定ボタン (オレンジ) */
+        .orange-btn {
+            background: linear-gradient(to top, #FF7043, #FFAB40);
+            color: white;
+            box-shadow: 0 4px 0 #E65100;
+        }
+        .orange-btn:active {
+            box-shadow: 0 2px 0 #E65100;
+        }
+
+        /* 再生ボタン (青) */
+        .blue-btn {
+            background: linear-gradient(to top, #2196F3, #64B5F6);
+            color: white;
+            box-shadow: 0 4px 0 #1565C0;
+        }
+        .blue-btn:active {
+            box-shadow: 0 2px 0 #1565C0;
+        }
+        
+        .remove-btn {
+            background: #F44336;
+            color: white;
+            padding: 5px 10px;
+            font-size: 14px;
+            border-radius: 4px;
+            box-shadow: none;
+        }
+        .remove-btn:active {
+            transform: none;
+        }
+    </style>
+</head>
+<body>
+    <div id="app-container">
+        <header>
+            <div class="logo">KumagaiBearTec</div>
+            <h1>デジタルサイネージシステム</h1>
+        </header>
+
+        <div class="button-row">
+            <button id="addBtn" class="action-btn yellow-btn">追加</button>
+        </div>
+
+        <table id="playlistTable">
+            <thead>
+                <tr>
+                    <th>動画名</th>
+                    <th class="col-duration">長さ</th>
+                    <th class="col-action">操作</th>
+                </tr>
+            </thead>
+            <tbody id="playlistBody">
+                <tr id="emptyRow"><td colspan="3" style="text-align: center; color: #777;">動画が登録されていません。</td></tr>
+            </tbody>
+        </table>
+
+        <div class="footer-buttons">
+            <button id="configBtn" class="action-btn orange-btn">設定</button>
+            <button id="playBtn" class="action-btn blue-btn" disabled>再生</button>
+        </div>
+    </div>
+
+    <script>
+        // DOM要素の取得
+        const addBtn = document.getElementById('addBtn'); 
+        const playBtn = document.getElementById('playBtn');
+        const configBtn = document.getElementById('configBtn');
+        const playlistBody = document.getElementById('playlistBody'); 
+
+        let playlist = []; // プレイリスト（パスの配列）
+
+        // 💡 関数: プレイリストの表示を更新する (テーブル対応)
+        function updatePlaylistView() {
+            playlistBody.innerHTML = ''; // tbodyをクリア
+            
+            if (playlist.length === 0) {
+                // 動画がない場合の表示
+                const emptyRow = document.createElement('tr');
+                emptyRow.innerHTML = `<td colspan="3" style="text-align: center; color: #777;">動画が登録されていません。</td>`;
+                playlistBody.appendChild(emptyRow);
+                playBtn.disabled = true;
+                return;
+            }
+
+            playlist.forEach((fullPath, idx) => {
+                const slashIdx = Math.max(fullPath.lastIndexOf('/'), fullPath.lastIndexOf('\\'));
+                const fileName = fullPath.substring(slashIdx + 1);
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${fileName}</td>
+                    <td class="col-duration">--:--</td> <td class="col-action">
+                        <button class="remove-btn" data-index="${idx}">削除</button>
+                    </td>
+                `;
+                
+                playlistBody.appendChild(row);
+            });
+            
+            // 削除ボタンのイベントリスナー設定
+            playlistBody.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.onclick = () => {
+                    const index = parseInt(btn.getAttribute('data-index'));
+                    playlist.splice(index, 1);
+                    updatePlaylistView(); // リスト再描画
+                };
+            });
+
+            playBtn.disabled = false;
+        }
+
+        // 💡 イベントリスナー (追加ボタン)
+        addBtn.addEventListener('click', async () => {
+            // メインプロセス経由でファイル選択ダイアログを開く
+            const selected = await window.api.openFileDialog();
+            
+            if (selected && selected.length > 0) {
+                // 既存プレイリストに追加 (重複は避ける)
+                playlist = playlist.concat(selected.filter(fp => !playlist.includes(fp)));
+                updatePlaylistView();
+            }
+        });
+
+        // 💡 イベントリスナー (再生ボタン - プレイヤーへ送信)
+        playBtn.addEventListener('click', () => {
+            if (playlist.length > 0) {
+                const urlPathList = playlist.map(fullPath => {
+                    // パスエンコードのロジック (日本語・スペース対策)
+                    let pathWithSlashes = fullPath.replace(/\\/g, '/');
+                    let encodedPath = encodeURI(pathWithSlashes);
+                    encodedPath = encodedPath.replace(/%3A/g, ':');
+                    return `file:///${encodedPath}`;
+                });
+                
+                // メインプロセス経由でプレイヤーにパスリストを送信
+                window.api.sendVideoPath(urlPathList);
+                alert(`動画 ${urlPathList.length} 個をプレイヤー画面へ送信しました。`);
+            }
+        });
+
+        // 💡 イベントリスナー (設定ボタン - 次のステップへ)
+        configBtn.addEventListener('click', () => {
+            alert("次のステップ：時報・スクリーン設定画面をここに表示します。");
+        });
+
+
+        // 起動時の初期化
+        updatePlaylistView();
+    </script>
+</body>
+</html>

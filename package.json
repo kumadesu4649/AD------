@@ -1,0 +1,13 @@
+{
+  "name": "ad-jihou-system",
+  "version": "1.0.0",
+  "description": "",
+  "license": "ISC",
+  "author": "Tiny Mouse",
+  "type": "commonjs",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  }
+}
+

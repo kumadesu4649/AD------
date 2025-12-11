@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>Player</title>
+  <style>
+    /* 全画面黒背景、余白なし */
+    body { margin: 0; padding: 0; background: #000; overflow: hidden; height: 100vh; display: flex; align-items: center; justify-content: center; }
+    video { width: 100%; height: 100%; object-fit: contain; } /* アスペクト比を維持して最大化 */
+  </style>
+</head>
+<body>
+  
+  <video id="mainPlayer"></video>
+  <script>
+    const player = document.getElementById('mainPlayer');
+    let playlist = [];
+    let currentVideoIndex = 0;
+    let isInterrupting = false; // 割り込み中フラグ
+    let loopWasPlaying = false; // 割り込み前にループが再生中だったか
+
+    const schedule = [
+    { time: '12:00', path: 'file:///path/to/jiho_12.mp4' }, // ユーザーの環境に合わせてパスを修正してください
+    { time: '18:00', path: 'file:///path/to/jiho_18.mp4' }, 
+];
+
+function checkSchedule() {
+    if (isInterrupting) return; // 割り込み中はチェックしない
+
+    const now = new Date();
+    const currentTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+    const seconds = now.getSeconds();
+
+    // 毎分0秒になったときのみチェック (負荷軽減)
+    if (seconds === 0) {
+        const targetSchedule = schedule.find(s => s.time === currentTime);
+        
+        if (targetSchedule) {
+            startInterrupt(targetSchedule.path);
+        }
+    }
+}
+
+function startInterrupt(jihoPath) {
+    console.log(`[JIHO] 時報 ${jihoPath} を再生します。`);
+    
+    isInterrupting = true;
+    loopWasPlaying = !player.paused; // ループが再生中だったか記憶
+    player.pause(); // ループ再生を一時停止
+
+    player.src = jihoPath;
+    player.load(); // 読み込み
+    
+    // 読み込み完了後に再生 (すぐに再生しないと間に合わない可能性があるため、endedと同時に実行しても良い)
+    player.onloadedmetadata = () => {
+        player.play().catch(e => console.error("時報再生エラー:", e));
+    };
+}
+
+// 時報動画の再生終了イベント
+player.addEventListener('ended', () => {
+    if (isInterrupting) {
+        console.log("[JIHO] 時報再生終了。ループに戻ります。");
+        isInterrupting = false;
+        
+        // ループ再生中の動画のパスを再設定
+        const currentLoopPath = playlist[currentVideoIndex - 1] || playlist[0]; // 次の動画に進んでしまったインデックスを修正
+        
+        player.src = currentLoopPath;
+        player.load();
+
+        if (loopWasPlaying) {
+            // 時報割り込み前に再生中だった場合のみ、再開
+            player.play().catch(e => console.error("ループ再開エラー:", e));
+        }
+        
+        // 時報終了後の onended イベント処理がループの onended と重複しないように、一度イベントリスナーを削除/再設定する工夫が必要ですが、
+        // 簡易版として、フラグ（isInterrupting）で処理を分けます。
+        player.onloadedmetadata = null; // 時報用のリスナーをクリア
+    } else {
+        // 通常のループ再生終了時の処理
+        playNextVideo(); 
+    }
+});
+
+    function playNextVideo() {
+        if (playlist.length === 0) {
+            console.log("再生する動画がありません");
+            return;
+        }
+
+        // インデックスが範囲外なら0に戻す（ループ）
+        if (currentVideoIndex >= playlist.length) {
+            currentVideoIndex = 0;
+        }
+
+        const nextVideoPath = playlist[currentVideoIndex];
+        console.log(`[LOOP] #${currentVideoIndex + 1} を再生開始: ${nextVideoPath}`);
+
+        player.src = nextVideoPath;
+        player.load();
+        player.play().catch(e => console.error("再生エラー:", e));
+        currentVideoIndex++;
+    }
+
+    // メインプロセスからの指示を受け取る (既存のコードを修正)
+    window.api.onPlayVideo((videoPathList) => {
+        // 💡 リスト（配列）を受け取ることを前提とする
+        if (Array.isArray(videoPathList)) {
+            playlist = videoPathList;
+            currentVideoIndex = 0; // リストが更新されたら最初から再生
+            playNextVideo();
+        } else {
+            console.error("無効なプレイリストデータを受信しました。");
+        }
+    });
+</script>
+</body>
+</html>
