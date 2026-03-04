@@ -148,8 +148,10 @@
             <h1>デジタルサイネージシステム</h1>
         </header>
 
-        <div class="button-row">
+        <!-- ボタン行: 追加・再生を横並び中央配置 -->
+        <div class="button-row" style="display: flex; justify-content: center; gap: 30px; margin-bottom: 25px;">
             <button id="addBtn" class="action-btn yellow-btn">追加</button>
+            <button id="playBtn" class="action-btn blue-btn" disabled>再生</button>
         </div>
 
         <table id="playlistTable">
@@ -165,9 +167,9 @@
             </tbody>
         </table>
 
-        <div class="footer-buttons">
+        <!-- 設定ボタンを下部中央に単独配置 -->
+        <div class="footer-buttons" style="display: flex; justify-content: center; padding: 0;">
             <button id="configBtn" class="action-btn orange-btn">設定</button>
-            <button id="playBtn" class="action-btn blue-btn" disabled>再生</button>
         </div>
     </div>
 
